@@ -1,4 +1,8 @@
+#include "monitor.h"
+
 int main(void *ptr)
 {
-	return 0xDEADBABA;
+	monitor_clear();
+	monitor_write("Hello, World!");
+	return 0;
 }
