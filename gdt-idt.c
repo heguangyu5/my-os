@@ -39,6 +39,24 @@ extern void isr29(void);
 extern void isr30(void);
 extern void isr31(void);
 
+extern void irq0(void);
+extern void irq1(void);
+extern void irq2(void);
+extern void irq3(void);
+extern void irq4(void);
+extern void irq5(void);
+extern void irq6(void);
+extern void irq7(void);
+
+extern void irq8(void);
+extern void irq9(void);
+extern void irq10(void);
+extern void irq11(void);
+extern void irq12(void);
+extern void irq13(void);
+extern void irq14(void);
+extern void irq15(void);
+
 static void gdt_set(u32int idx, u32int base, u32int limit, u8int access, u8int gran)
 {
 	gdt_entries[idx].base_low	 = (base & 0xFFFF);
@@ -81,6 +99,19 @@ void init_idt()
 {
 	idt_ptr.size = sizeof(idt_entry_t) * 256 - 1;
 	idt_ptr.base = (u32int)&idt_entries;
+
+	// Master PIC
+	outb(0x20, 0x11);
+	outb(0x21, 0x20);
+	outb(0x21, 0x04);
+	outb(0x21, 0x01);
+	outb(0x21, 0x00);
+	// Slave PIC
+	outb(0xA0, 0x11);
+	outb(0xA1, 0x28);
+	outb(0xA1, 0x02);
+	outb(0xA1, 0x01);
+	outb(0xA1, 0x00);
 	
 	idt_set(0, (u32int)isr0, 0x08, 0x8E);
 	idt_set(1, (u32int)isr1, 0x08, 0x8E);
@@ -114,6 +145,24 @@ void init_idt()
 	idt_set(29, (u32int)isr29, 0x08, 0x8E);
 	idt_set(30, (u32int)isr30, 0x08, 0x8E);
 	idt_set(31, (u32int)isr31, 0x08, 0x8E);
+
+	idt_set(32, (u32int)irq0, 0x08, 0x8E);
+	idt_set(33, (u32int)irq1, 0x08, 0x8E);
+	idt_set(34, (u32int)irq2, 0x08, 0x8E);
+	idt_set(35, (u32int)irq3, 0x08, 0x8E);
+	idt_set(36, (u32int)irq4, 0x08, 0x8E);
+	idt_set(37, (u32int)irq5, 0x08, 0x8E);
+	idt_set(38, (u32int)irq6, 0x08, 0x8E);
+	idt_set(39, (u32int)irq7, 0x08, 0x8E);
+
+	idt_set(40, (u32int)irq8, 0x08, 0x8E);
+	idt_set(41, (u32int)irq9, 0x08, 0x8E);
+	idt_set(42, (u32int)irq10, 0x08, 0x8E);
+	idt_set(43, (u32int)irq11, 0x08, 0x8E);
+	idt_set(44, (u32int)irq12, 0x08, 0x8E);
+	idt_set(45, (u32int)irq13, 0x08, 0x8E);
+	idt_set(46, (u32int)irq14, 0x08, 0x8E);
+	idt_set(47, (u32int)irq15, 0x08, 0x8E);
 
 	idt_flush((u32int)&idt_ptr);
 }
