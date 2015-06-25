@@ -1,7 +1,7 @@
 CFLAGS=-nostdlib -nostdinc -fno-builtin -fno-stack-protector -m32
 ASFLAGS=--32
 
-OBJS=boot.o main.o common.o gdt-idt-s.o gdt-idt.o isr.o monitor.o
+OBJS=boot.o main.o common.o gdt-idt-s.o gdt-idt.o isr.o monitor.o timer.o
  
 all: $(OBJS)
 	ld -T link.ld -m elf_i386 -o kernel $(OBJS)
@@ -22,6 +22,8 @@ isr.o: isr.c
 	gcc -c isr.c $(CFLAGS)
 monitor.o: monitor.c
 	gcc -c monitor.c $(CFLAGS)
+timer.o: timer.c
+	gcc -c timer.c $(CFLAGS)
 run-floppy:
 	bochs -q
 clean:

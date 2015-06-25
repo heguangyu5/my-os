@@ -1,5 +1,6 @@
 #include "monitor.h"
 #include "gdt-idt.h"
+#include "timer.h"
 
 int main(void *ptr)
 {
@@ -9,8 +10,11 @@ int main(void *ptr)
 	monitor_clear();
 	monitor_write("Hello, World!\n");
 
-	asm volatile("int $0x03");
-	asm volatile("int $0x04");
+	asm volatile("int $0x3");
+	asm volatile("int $0x4");
+
+	asm volatile("sti");
+	init_timer(50); // 50Hz 
 
 	return 0;
 }
