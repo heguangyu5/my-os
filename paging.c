@@ -101,7 +101,7 @@ print_kheap_brk();
 
 	register_interrupt_handler(14, page_fault);
 
-	switch_page_directory(kernel_directory);
+	switch_page_directory(&kernel_directory->tablesPhysical);
 }
 
 page_t *get_page(u32int address, int make, page_directory_t *dir)
