@@ -1,7 +1,7 @@
 CFLAGS=-nostdlib -nostdinc -fno-builtin -fno-stack-protector -m32
 ASFLAGS=--32
 
-OBJS=boot.o main.o common-s.o common.o gdt-idt-s.o gdt-idt.o isr.o monitor.o timer.o kheap.o paging-s.o paging.o
+OBJS=boot.o main.o common-s.o common.o gdt-idt-s.o gdt-idt.o isr.o monitor.o timer.o kheap.o paging-s.o paging.o ordered-array.o
  
 all: $(OBJS)
 	ld -T link.ld -m elf_i386 -o kernel $(OBJS)
@@ -32,6 +32,8 @@ paging-s.o: paging.s
 	as -o paging-s.o paging.s $(ASFLAGS)
 paging.o: paging.c
 	gcc -c paging.c $(CFLAGS)
+ordered-array.o: ordered-array.c
+	gcc -c ordered-array.c $(CFLAGS)
 run-floppy:
 	bochs -q
 clean:

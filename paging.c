@@ -1,15 +1,6 @@
 #include "paging.h"
 #include "kheap.h"
 
-page_directory_t *kernel_directory = 0;
-page_directory_t *current_directory = 0;
-
-u32int *frames;
-u32int nframes;
-
-#define INDEX_FROM_BIT(a) (a/32)
-#define OFFSET_FROM_BIT(a) (a%32)
-
 static void set_frame(u32int frame_addr)
 {
 	u32int frame = frame_addr / 0x1000;
@@ -81,9 +72,9 @@ void free_frame(page_t *page)
 
 void init_paging()
 {
-	u32int mem_end_page = 0x1000000; // 16M
+	u32int total_mem = 0x1000000; // 16M
 
-	nframes = mem_end_page / 0x1000; // 4K
+	nframes = total_mem / 0x1000; // 4K
 	frames = (u32int *)kmalloc(nframes / 8);
 	memset(frames, 0, nframes / 8);
 print_kheap_brk();
@@ -93,15 +84,32 @@ print_kheap_brk();
 print_kheap_brk();
 
 	int i = 0;
-	while (i < placement_address) {
+	for (i = KHEAP_START; i < KHEAP_START + KHEAP_INIT_SIZE; i += 0x1000) {
+		// 如果在这里alloc_frame,就会使frames bitmap的前几个map到heap上
+		// 这样phys addr != virt addr了
+		get_page(i, 1, kernel_directory);
+	}
+
+	// 这里之所以要加0x1000,多map出来4K的内存,是为了启用page后,heap创建前,需要一块内存
+	// 保存heap_t,如果不多map出这4K,就会导致heap holes这个ordered array覆盖到heap_t的数据
+	i = 0;
+	while (i < placement_address + 0x1000) {
 		alloc_frame(get_page(i, 1, kernel_directory), 0, 0);
 		i += 0x1000;
 	}
 print_kheap_brk();
+	// 到此,kernel使用的内存都分配了,并且phys addr == virt addr
+
+	// 从这里开始,把heap的virt地址开始map到phys地址上, phys addr != virt addr
+	for (i = KHEAP_START; i < KHEAP_START + KHEAP_INIT_SIZE; i += 0x1000) {
+		alloc_frame(get_page(i, 1, kernel_directory), 0, 0);
+	}
 
 	register_interrupt_handler(14, page_fault);
 
-	switch_page_directory(&kernel_directory->tablesPhysical);
+	switch_page_directory((u32int)&kernel_directory->tablesPhysical);
+
+	kheap = create_heap(KHEAP_START, KHEAP_START + KHEAP_INIT_SIZE, 0xCFFFF000, 0, 0);
 }
 
 page_t *get_page(u32int address, int make, page_directory_t *dir)

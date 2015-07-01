@@ -19,21 +19,24 @@ int main(void *multibootPtr)
 	//init_timer(50); // 50Hz 
 
 	u32int addr;
-
 	print_kheap_brk();
 
 	addr = kmalloc(8);
 	monitor_write("kmalloc(8) = ");
 	monitor_write_hex(addr);
 	monitor_put('\n');
+	print_kheap_brk();
 
+	addr = kmalloc_a(0x1000);
+	monitor_write("kmalloc_a(0x1000) = ");
+	monitor_write_hex(addr);
+	monitor_put('\n');
 	print_kheap_brk();
 
 	addr = kmalloc_a(8);
 	monitor_write("kmalloc_a(8) = ");
 	monitor_write_hex(addr);
 	monitor_put('\n');
-
 	print_kheap_brk();
 
 	init_paging();
