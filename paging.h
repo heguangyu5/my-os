@@ -3,6 +3,7 @@
 
 #include "common.h"
 #include "isr.h"
+#include "kheap.h"
 
 typedef struct {
 	u32int present	: 1;
@@ -23,15 +24,6 @@ typedef struct {
 	u32int tablesPhysical[1024];
 	u32int physicalAddr;
 } page_directory_t;
-
-page_directory_t *kernel_directory = 0;
-page_directory_t *current_directory = 0;
-
-u32int *frames;
-u32int nframes;
-
-#define INDEX_FROM_BIT(a) (a/32)
-#define OFFSET_FROM_BIT(a) (a%32)
 
 void init_paging();
 void switch_page_directory(u32int pageDirPhysAddr);

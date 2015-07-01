@@ -1,5 +1,16 @@
 #include "paging.h"
-#include "kheap.h"
+
+#define INDEX_FROM_BIT(a) (a/32)
+#define OFFSET_FROM_BIT(a) (a%32)
+
+page_directory_t *kernel_directory = 0;
+page_directory_t *current_directory = 0;
+
+u32int *frames;
+u32int nframes;
+heap_t *kheap;
+
+extern u32int placement_address;
 
 static void set_frame(u32int frame_addr)
 {

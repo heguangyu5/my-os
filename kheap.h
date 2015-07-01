@@ -3,14 +3,14 @@
 
 #include "common.h"
 #include "ordered-array.h"
+#include "paging.h"
 
-extern u32int placement_address;
 
 u32int kmalloc_a(u32int size);
 u32int kmalloc_p(u32int size, u32int *phys);
 u32int kmalloc_ap(u32int size, u32int *phys);
 u32int kmalloc(u32int size);
-u32int kfree(void *p);
+void kfree(void *p);
 void print_kheap_brk();
 
 #define KHEAP_START 0xC0000000
@@ -42,6 +42,8 @@ typedef struct {
 
 heap_t *create_heap(u32int start_addr, u32int end_addr, u32int max_addr, u8int supervisor, u8int readonly);
 void *alloc(u32int size, u8int page_align, heap_t *heap);
-void *free(void *p, heap_t *heap);
+void free(void *p, heap_t *heap);
+void print_heap(heap_t *heap);
+void print_heap_holes(heap_t *heap);
 
 #endif
