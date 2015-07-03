@@ -68,3 +68,15 @@ void remove_ordered_array(u32int idx, ordered_array_t *array)
 	}
 	array->size--;
 }
+
+void remove_ordered_array_item(void *item, ordered_array_t *array)
+{
+    u32int idx = 0;
+    while (idx < array->size) {
+        if (item == array->arr[idx]) {
+            remove_ordered_array(idx, array);
+            break;
+        }
+        idx++;
+    }
+}

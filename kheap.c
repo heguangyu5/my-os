@@ -7,67 +7,61 @@ u32int placement_address = (u32int)&end;
 extern heap_t *kheap;
 extern page_directory_t *kernel_directory;
 
-static u32int kmalloc_internal(u32int size, int align, u32int *phys)
+static u32int kmalloc_internal(u32int size, u8int align, u32int *phys)
 {
-	if (align && (placement_address & 0xFFF)) {
-		placement_address &= 0xFFFFF000;
-		placement_address += 0x1000;
+	if (kheap == 0) {
+		if (align && (placement_address & 0xFFF)) {
+			placement_address &= 0xFFFFF000;
+			placement_address += 0x1000;
+		}
+		if (phys) {
+			*phys = placement_address;
+		}
+		u32int tmp = placement_address;
+		placement_address += size;
+		return tmp;
 	}
+
+	void *addr = alloc(size, align, kheap);
 	if (phys) {
-		*phys = placement_address;
+		page_t *page = get_page((u32int)addr, 0, kernel_directory);
+		*phys = page->frame * 0x1000 + (u32int)addr & 0xFFF;
 	}
-	u32int tmp = placement_address;
-	placement_address += size;
-	return tmp;
+	return (u32int)addr;
 }
 
 u32int kmalloc_a(u32int size)
 {
-	if (kheap == 0) {
-		return kmalloc_internal(size, 1, 0);
-	}
-	return (u32int)alloc(size, 1, kheap);
+	return kmalloc_internal(size, 1, 0);
 }
 
 u32int kmalloc_p(u32int size, u32int *phys)
 {
-	if (kheap == 0) {
-		return kmalloc_internal(size, 0, phys);
-	}
-	*phys = (u32int)alloc(size, 0, kheap);
-	return *phys;
+	return kmalloc_internal(size, 0, phys);
 }
 
 u32int kmalloc_ap(u32int size, u32int *phys)
 {
-	if (kheap == 0) {
-		return kmalloc_internal(size, 1, phys);
-	}
-	*phys = (u32int)alloc(size, 1, kheap);
-	return *phys;
+	return kmalloc_internal(size, 1, phys);
 }
 
 u32int kmalloc(u32int size)
 {
-	if (kheap == 0) {
-		return kmalloc_internal(size, 0, 0);
-	}
-	return (u32int)alloc(size, 0, kheap);
+	return kmalloc_internal(size, 0, 0);
 }
 
-void kfree(void *p) 
+void kfree(void *p)
 {
 	ASSERT(kheap != 0);
 	free(p, kheap);
 }
 
-void print_kheap_brk()
+void print_placement_address()
 {
-	monitor_write("current placement_address = ");
+	monitor_write("placement_address = ");
 	monitor_write_hex(placement_address);
 	monitor_put('\n');
 }
-
 
 static s8int header_t_less_than(void *a, void *b)
 {
@@ -98,7 +92,7 @@ heap_t *create_heap(u32int start_addr, u32int end_addr, u32int max_addr, u8int s
 
 	start_addr += sizeof(void *) * HEAP_HOLE_SIZE;
 	if (start_addr & 0xFFF) {
-		start_addr &= 0xFFFFF000;	
+		start_addr &= 0xFFFFF000;
 		start_addr += 0x1000;
 	}
 
@@ -111,6 +105,22 @@ heap_t *create_heap(u32int start_addr, u32int end_addr, u32int max_addr, u8int s
 	new_hole(start_addr, end_addr - start_addr, heap);
 
 	return heap;
+}
+
+void print_holes(heap_t *heap)
+{
+    ordered_array_t *holes = &heap->holes;
+
+    monitor_write("\nHOLES:\n");
+
+    u32int idx = 0;
+    while (idx < holes->size) {
+        monitor_write_dec(idx + 1);
+        monitor_put('\t');
+        monitor_write_hex((u32int)lookup_ordered_array(idx, holes));
+        monitor_put('\n');
+        idx++;
+    }
 }
 
 static s32int find_smallest_hole(u32int size, u8int page_align, heap_t *heap)
@@ -178,7 +188,7 @@ static void expand(u32int incr_size, heap_t *heap)
 		);
 		i += 0x1000;
 	}
-	
+
 	joinLeft(heap->end_addr, incr_size, heap);
 
 	heap->end_addr += incr_size;
@@ -212,13 +222,13 @@ void *alloc(u32int size, u8int page_align, heap_t *heap)
 		new_size = hole_size;
 		leftAsNewHole = 0;
 	}
-	
+
 	remove_ordered_array(idx, &heap->holes);
 
 	header_t *block_header = (header_t *)hole_start;
 	block_header->magic   = HEAP_MAGIC;
 	block_header->is_hole = 0;
-	block_header->size    = new_size; 
+	block_header->size    = new_size;
 
 	footer_t *block_footer = (footer_t *)(hole_start + new_size - sizeof(footer_t));
 	block_footer->magic  = HEAP_MAGIC;
@@ -246,7 +256,52 @@ void free(void *p, heap_t *heap)
 	joinLeft((u32int)header, header->size, heap);
 
 	u32int next_header = (u32int)header + header->size;
-	if (next_header < heap->end_addr) {
+
+	if (next_header < heap->end_addr && ((header_t *)next_header)->is_hole) {
 		joinLeft(next_header, ((header_t *)next_header)->size, heap);
+		remove_ordered_array_item((void *)next_header, &heap->holes);
 	}
+}
+
+void print_heap(heap_t *heap)
+{
+	monitor_write("\nHEAP INFO:\n");
+
+	monitor_write("start_addr = ");
+	monitor_write_hex(heap->start_addr);
+	monitor_write(", end_addr = ");
+	monitor_write_hex(heap->end_addr);
+	monitor_write(", max_addr = ");
+	monitor_write_hex(heap->max_addr);
+	monitor_put('\n');
+
+	monitor_write("supervisor = ");
+	monitor_write_dec(heap->supervisor);
+	monitor_write(", readonly = ");
+	monitor_write_dec(heap->readonly);
+	monitor_put('\n');
+
+	monitor_write("HEAP DESC:\n");
+
+	u32int addr = heap->start_addr;
+	header_t *header;
+	while (addr < heap->end_addr) {
+		header = (header_t *)addr;
+		ASSERT(header->magic == HEAP_MAGIC);
+
+		monitor_write_hex(addr);
+		monitor_put('\t');
+		monitor_write(header->is_hole ? "HOLE" : "BLOCK");
+		monitor_put('\t');
+		monitor_write_dec(header->size);
+		monitor_put('\t');
+		monitor_write_dec(header->size - sizeof(header_t) - sizeof(footer_t));
+		monitor_put('\t');
+		monitor_write_hex((u32int)header + sizeof(header_t));
+		monitor_put('\n');
+
+		addr += header->size;
+	}
+	monitor_write_hex(addr);
+	monitor_write("\tEND\n");
 }

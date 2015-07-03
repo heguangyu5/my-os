@@ -18,5 +18,6 @@ void destroy_ordered_array(ordered_array_t *array);
 void insert_ordered_array(void *item, ordered_array_t *array);
 void *lookup_ordered_array(u32int idx, ordered_array_t *array);
 void remove_ordered_array(u32int idx, ordered_array_t *array);
+void remove_ordered_array_item(void *item, ordered_array_t *array);
 
 #endif

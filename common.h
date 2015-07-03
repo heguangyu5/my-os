@@ -21,4 +21,6 @@ void memset(void *dest, u8int val, u32int len);
 void panic(char *msg, char *file, u32int line);
 void panic_assert(char *file, u32int line, char *desc);
 
+void break_point();
+
 #endif

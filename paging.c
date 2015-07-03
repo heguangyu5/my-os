@@ -88,12 +88,26 @@ void init_paging()
 	nframes = total_mem / 0x1000; // 4K
 	frames = (u32int *)kmalloc(nframes / 8);
 	memset(frames, 0, nframes / 8);
-print_kheap_brk();
+
+monitor_write("kmalloc(");
+monitor_write_dec(nframes / 8);
+monitor_write(") for frames\n");
+monitor_write("frames start here: ");
+monitor_write_hex(frames);
+monitor_put('\n');
+print_placement_address();
 
 	kernel_directory = (page_directory_t *)kmalloc_a(sizeof(page_directory_t));
 	current_directory = kernel_directory;
-print_kheap_brk();
+monitor_write("kmalloc_a(");
+monitor_write_dec(sizeof(page_directory_t));
+monitor_write(") for kernel_directory\n");
+monitor_write("kernel_directory start here: ");
+monitor_write_hex((u32int)kernel_directory);
+monitor_put('\n');
+print_placement_address();
 
+monitor_write("init kheap page table\n");
 	int i = 0;
 	for (i = KHEAP_START; i < KHEAP_START + KHEAP_INIT_SIZE; i += 0x1000) {
 		// 如果在这里alloc_frame,就会使frames bitmap的前几个map到heap上
@@ -101,6 +115,7 @@ print_kheap_brk();
 		get_page(i, 1, kernel_directory);
 	}
 
+monitor_write("init current used memeory page table and alloc frames\n");
 	// 这里之所以要加0x1000,多map出来4K的内存,是为了启用page后,heap创建前,需要一块内存
 	// 保存heap_t,如果不多map出这4K,就会导致heap holes这个ordered array覆盖到heap_t的数据
 	i = 0;
@@ -108,19 +123,28 @@ print_kheap_brk();
 		alloc_frame(get_page(i, 1, kernel_directory), 0, 0);
 		i += 0x1000;
 	}
-print_kheap_brk();
 	// 到此,kernel使用的内存都分配了,并且phys addr == virt addr
 
+monitor_write("alloc kheap frames\n");
 	// 从这里开始,把heap的virt地址开始map到phys地址上, phys addr != virt addr
 	for (i = KHEAP_START; i < KHEAP_START + KHEAP_INIT_SIZE; i += 0x1000) {
 		alloc_frame(get_page(i, 1, kernel_directory), 0, 0);
 	}
 
+monitor_write("register page_falut handler\n");
 	register_interrupt_handler(14, page_fault);
 
+monitor_write("enable paging\n");
 	switch_page_directory((u32int)&kernel_directory->tablesPhysical);
 
-	kheap = create_heap(KHEAP_START, KHEAP_START + KHEAP_INIT_SIZE, 0xCFFFF000, 0, 0);
+monitor_write("create kheap\n");
+	// kheap max_addr最大只能是0xC0400000,也就是说kheap最大是4M
+	// 因为当heap不够用要expand时,会map一个或多个page,
+	// 但是如果一个page_table用完了,需要新开一个page_table时,问题就来了
+	// get_page方法里调用kmalloc_ap来分配一块内存给新的page_table,
+	// 因为此时kheap != 0, 实际上是调用的alloc方法,alloc方法发现内存不够用,
+	// 要expand,然后就死循环了
+	kheap = create_heap(KHEAP_START, KHEAP_START + KHEAP_INIT_SIZE, 0xC0400000, 0, 0);
 }
 
 page_t *get_page(u32int address, int make, page_directory_t *dir)
@@ -135,6 +159,14 @@ page_t *get_page(u32int address, int make, page_directory_t *dir)
 		u32int tmp;
 		dir->tables[table_idx] = (page_table_t *)kmalloc_ap(sizeof(page_table_t), &tmp);
 		dir->tablesPhysical[table_idx] = tmp | 0x7; // PRESENT RW US
+monitor_write("kmalloc_ap(");
+monitor_write_dec(sizeof(page_table_t));
+monitor_write(") for page_table ");
+monitor_write_dec(table_idx);
+monitor_write(" at ");
+monitor_write_hex(tmp);
+monitor_put('\n');
+print_placement_address();
 		return &dir->tables[table_idx]->pages[address % 1024];
 	}
 

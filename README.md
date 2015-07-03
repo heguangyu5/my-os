@@ -2,8 +2,6 @@
 
 **How to set Bochs break point**
 
-    readelf kernel
-	Entry point address: 0x100020
+    readelf -s kernel  | egrep 'main|monitor_write'
 
-	objdump -S boot.o
-	objdump -S main.o
+    objdump -S

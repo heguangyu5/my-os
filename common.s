@@ -3,16 +3,13 @@
 .global outb
 .global inw
 .global inb
-
-.type outb, @function
-.type inb, @function
-.type inw, @function
+.global break_point
 
 # void outb(u16int port, u8int value)
 outb:
 	movw 4(%esp), %dx
 	movb 8(%esp), %al
-	outb %al, %dx 
+	outb %al, %dx
 	ret
 
 # u8int inb(u16int port)
@@ -26,3 +23,7 @@ inw:
 	movw 4(%esp), %dx
 	inw %dx, %ax
 	ret
+
+# void break_point()
+break_point:
+    ret

@@ -41,8 +41,12 @@ void monitor_put(char c)
 
 	if (c == 0x08 && x) { // backspace
 		x--;
-	} else if (c == 0x09) { // tab
-		x = (x+8) & ~(8-1); // FIXME: how does this work?
+	} else if (c == '\t') {
+		if (x % 4) {
+			x += 4 - x % 4;
+		} else {
+			x += 4;
+		}
 	} else if (c == '\r') {
 		x = 0;
 	} else if (c == '\n') {
