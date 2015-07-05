@@ -23,6 +23,30 @@ void memset(void *dest, u8int val, u32int len)
 	}
 }
 
+s8int strcmp(char *a, char *b)
+{
+	int i = 0;
+	while (a[i] && b[i]) {
+		if (a[i] == b[i]) {
+			i++;
+		} else if (a[i] > b[i]) {
+			return 1;
+		} else {
+			return -1;
+		}
+	}
+
+	if (a[i] == 0 && b[i] == 0) {
+		return 0;
+	}
+
+	if (a[i] == 0) {
+		return -1;
+	}
+
+	return 1;
+}
+
 void panic(char *msg, char *file, u32int line)
 {
 	asm volatile("cli");

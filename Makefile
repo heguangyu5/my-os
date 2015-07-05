@@ -1,7 +1,7 @@
 CFLAGS=-nostdlib -nostdinc -fno-builtin -fno-stack-protector -m32
 ASFLAGS=--32
 
-OBJS=boot.o main.o common-s.o common.o gdt-idt-s.o gdt-idt.o isr.o monitor.o timer.o kheap.o paging-s.o paging.o ordered-array.o
+OBJS=boot.o common-s.o main.o common.o gdt-idt-s.o gdt-idt.o isr.o monitor.o timer.o kheap.o paging-s.o paging.o ordered-array.o fs.o initrd.o
  
 all: $(OBJS)
 	ld -T link.ld -m elf_i386 -o kernel $(OBJS)
@@ -34,7 +34,17 @@ paging.o: paging.c
 	gcc -c paging.c $(CFLAGS)
 ordered-array.o: ordered-array.c
 	gcc -c ordered-array.c $(CFLAGS)
+fs.o: fs.c
+	gcc -c fs.c $(CFLAGS)
+initrd.o: initrd.c
+	gcc -c initrd.c $(CFLAGS)
+mk-initrd: mk-initrd.c
+	gcc -Wall -o mk-initrd mk-initrd.c
+	./mk-initrd file1.txt file-1.txt file2.txt file-2.txt
+	sudo mount -o loop floppy.img /mnt
+	sudo cp initrd.img /mnt/initrd
+	sudo umount /mnt
 run-floppy:
 	bochs -q
 clean:
-	rm *.o kernel
+	rm *.o kernel mk-initrd initrd.img

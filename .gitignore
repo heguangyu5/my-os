@@ -1,2 +1,4 @@
 *.o
 kernel
+initrd.img
+mk-initrd
