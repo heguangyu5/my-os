@@ -29,5 +29,7 @@ void init_paging();
 void switch_page_directory(u32int pageDirPhysAddr);
 page_t *get_page(u32int address, int make, page_directory_t *dir);
 void page_fault(registers_t regs);
+page_directory_t *clone_directory(page_directory_t *src);
+void alloc_frame(page_t *page, int is_kernel, int is_writeable);
 
 #endif

@@ -61,7 +61,7 @@ void alloc_frame(page_t *page, int is_kernel, int is_writeable)
 
 	u32int idx = first_frame();
 	if (idx == (u32int)-1) {
-		// no free frames!!	
+		// no free frames!!
 	}
 	set_frame(idx * 0x1000);
 	page->present = 1;
@@ -91,21 +91,26 @@ void init_paging()
 
 monitor_write("kmalloc(");
 monitor_write_dec(nframes / 8);
-monitor_write(") for frames\n");
-monitor_write("frames start here: ");
+monitor_write(") for frames: ");
 monitor_write_hex(frames);
+monitor_write(" ~ ");
+monitor_write_hex(placement_address);
 monitor_put('\n');
-print_placement_address();
+break_point();
 
 	kernel_directory = (page_directory_t *)kmalloc_a(sizeof(page_directory_t));
+	memset(kernel_directory, 0, sizeof(kernel_directory));
+	kernel_directory->physicalAddr = (u32int)kernel_directory->tablesPhysical;
 	current_directory = kernel_directory;
+
 monitor_write("kmalloc_a(");
 monitor_write_dec(sizeof(page_directory_t));
-monitor_write(") for kernel_directory\n");
-monitor_write("kernel_directory start here: ");
+monitor_write(") for kernel_directory: ");
 monitor_write_hex((u32int)kernel_directory);
+monitor_write(" ~ ");
+monitor_write_hex(placement_address);
 monitor_put('\n');
-print_placement_address();
+break_point();
 
 monitor_write("init kheap page table\n");
 	int i = 0;
@@ -114,6 +119,8 @@ monitor_write("init kheap page table\n");
 		// 这样phys addr != virt addr了
 		get_page(i, 1, kernel_directory);
 	}
+print_placement_address();
+break_point();
 
 monitor_write("init current used memeory page table and alloc frames\n");
 	// 这里之所以要加0x1000,多map出来4K的内存,是为了启用page后,heap创建前,需要一块内存
@@ -124,18 +131,30 @@ monitor_write("init current used memeory page table and alloc frames\n");
 		i += 0x1000;
 	}
 	// 到此,kernel使用的内存都分配了,并且phys addr == virt addr
+monitor_write("placement_address at ");
+monitor_write_hex(placement_address);
+monitor_write(" , but memory used is(kheap area start) ");
+monitor_write_hex(placement_address + 0x1000);
+monitor_put('\n');
+break_point();
 
 monitor_write("alloc kheap frames\n");
 	// 从这里开始,把heap的virt地址开始map到phys地址上, phys addr != virt addr
 	for (i = KHEAP_START; i < KHEAP_START + KHEAP_INIT_SIZE; i += 0x1000) {
 		alloc_frame(get_page(i, 1, kernel_directory), 0, 0);
 	}
+monitor_write("now momory used is ");
+monitor_write_hex(placement_address + 0x1000 + KHEAP_INIT_SIZE);
+monitor_write(", kheap initial size is 1M, max size is 4M\n");
+break_point();
 
 monitor_write("register page_falut handler\n");
 	register_interrupt_handler(14, page_fault);
+break_point();
 
 monitor_write("enable paging\n");
 	switch_page_directory((u32int)&kernel_directory->tablesPhysical);
+break_point();
 
 monitor_write("create kheap\n");
 	// kheap max_addr最大只能是0xC0400000,也就是说kheap最大是4M
@@ -145,6 +164,21 @@ monitor_write("create kheap\n");
 	// 因为此时kheap != 0, 实际上是调用的alloc方法,alloc方法发现内存不够用,
 	// 要expand,然后就死循环了
 	kheap = create_heap(KHEAP_START, KHEAP_START + KHEAP_INIT_SIZE, 0xC0400000, 0, 0);
+break_point();
+monitor_write("kheap current stat\n");
+print_heap(kheap);
+break_point();
+
+monitor_write("clone kernel_directory\n");
+	current_directory = clone_directory(kernel_directory);
+monitor_write("cloned directory at ");
+monitor_write_hex((u32int)current_directory);
+monitor_put('\n');
+break_point();
+
+monitor_write("switch to cloned kernel_directory\n");
+	switch_page_directory((u32int)&current_directory->tablesPhysical);
+break_point();
 }
 
 page_t *get_page(u32int address, int make, page_directory_t *dir)
@@ -159,6 +193,7 @@ page_t *get_page(u32int address, int make, page_directory_t *dir)
 		u32int tmp;
 		dir->tables[table_idx] = (page_table_t *)kmalloc_ap(sizeof(page_table_t), &tmp);
 		dir->tablesPhysical[table_idx] = tmp | 0x7; // PRESENT RW US
+		memset(dir->tables[table_idx], 0, sizeof(page_table_t));
 monitor_write("kmalloc_ap(");
 monitor_write_dec(sizeof(page_table_t));
 monitor_write(") for page_table ");
@@ -166,7 +201,7 @@ monitor_write_dec(table_idx);
 monitor_write(" at ");
 monitor_write_hex(tmp);
 monitor_put('\n');
-print_placement_address();
+break_point();
 		return &dir->tables[table_idx]->pages[address % 1024];
 	}
 
@@ -204,4 +239,53 @@ void page_fault(registers_t regs)
 	monitor_write_hex(faulting_address);
 	monitor_put('\n');
 	PANIC("Page fault");
+}
+
+static page_table_t *clone_table(page_table_t *src, u32int *physAddr)
+{
+	page_table_t *table = (page_table_t *)kmalloc_ap(sizeof(page_table_t), physAddr);
+	memset(table, 0, sizeof(page_table_t));
+
+	int i;
+	for (i = 0; i < 1024; i++) {
+		if (!src->pages[i].frame) {
+			continue;
+		}
+		alloc_frame(&table->pages[i], 0, 0);
+		if (src->pages[i].present) 	table->pages[i].present = 1;
+		if (src->pages[i].rw)		table->pages[i].rw = 1;
+		if (src->pages[i].user)		table->pages[i].user = 1;
+		if (src->pages[i].accessed)	table->pages[i].accessed = 1;
+		if (src->pages[i].dirty)	table->pages[i].dirty = 1;
+
+		copy_page_physical(src->pages[i].frame * 0x1000, table->pages[i].frame * 0x1000);
+	}
+
+	return table;
+}
+
+page_directory_t *clone_directory(page_directory_t *src)
+{
+	u32int phys;
+	page_directory_t *dir = (page_directory_t *)kmalloc_ap(sizeof(page_directory_t), &phys);
+	memset(dir, 0, sizeof(page_directory_t));
+	u32int offset = (u32int)dir->tablesPhysical - (u32int)dir;
+	dir->physicalAddr = phys + offset;
+
+	int i;
+	for (i = 0; i < 1024; i++) {
+		if (!src->tables[i]) {
+			continue;
+		}
+		if (kernel_directory->tables[i] == src->tables[i]) {
+			dir->tables[i] = src->tables[i];
+			dir->tablesPhysical[i] = src->tablesPhysical[i];
+		} else {
+			u32int phys;
+			dir->tables[i] = clone_table(src->tables[i], &phys);
+			dir->tablesPhysical[i] = phys | 0x07;
+		}
+	}
+
+	return dir;
 }

@@ -5,6 +5,7 @@
 #include "kheap.h"
 #include "paging.h"
 #include "fs.h"
+#include "task.h"
 
 extern u32int end;
 extern u32int placement_address;
@@ -13,105 +14,48 @@ extern fs_node_t *initrd_root;
 extern fs_node_t *initrd_dev;
 extern fs_node_t *root_nodes;
 
-int main(struct multiboot *mboot_ptr)
+u32int initial_esp;
+
+int main(struct multiboot *mboot_ptr, u32int initial_stack)
 {
+	initial_esp = initial_stack;
+
 	init_gdt();
 	init_idt();
 
 	monitor_clear();
-	monitor_write("Hello, World!\n");
 
-	asm volatile("int $0x3");
-	asm volatile("int $0x4");
-
-	//asm volatile("sti");
-	//init_timer(50); // 50Hz
+	asm volatile("sti");
+	init_timer(50); // 50Hz
 
 	monitor_write("kernel end at ");
 	monitor_write_hex((u32int)&end);
 	monitor_put('\n');
 	break_point();
 
-	monitor_write("mboot_ptr = ");
-	monitor_write_hex((u32int)mboot_ptr);
-	monitor_put('\n');
-	monitor_write("&mboot_ptr->mods_addr = ");
-	monitor_write_hex((u32int)&mboot_ptr->mods_addr);
-	monitor_put('\n');
-	monitor_write("mboot_ptr->mods_addr = ");
-	monitor_write_hex(mboot_ptr->mods_addr);
-	monitor_put('\n');
-	ASSERT(mboot_ptr->mods_count > 0);
-	u32int initrd_location = *((u32int *)mboot_ptr->mods_addr);
-	u32int initrd_end	   = *(u32int *)(mboot_ptr->mods_addr + 4);
+    ASSERT(mboot_ptr->mods_count > 0);
+	u32int initrd_location = mboot_ptr->mods_addr[0];
+	u32int initrd_end	   = mboot_ptr->mods_addr[1];
 	placement_address = initrd_end;
-
-	u32int addr;
-	print_placement_address();
-	break_point();
-
-	addr = kmalloc(8);
-	monitor_write("kmalloc(8) = ");
-	monitor_write_hex(addr);
+	monitor_write("initrd: ");
+	monitor_write_hex(initrd_location);
+	monitor_write(" ~ ");
+	monitor_write_hex(initrd_end);
 	monitor_put('\n');
-	print_placement_address();
-	break_point();
 
-	addr = kmalloc_a(0x1000);
-	monitor_write("kmalloc_a(0x1000) = ");
-	monitor_write_hex(addr);
-	monitor_put('\n');
-	print_placement_address();
-	break_point();
-
-	addr = kmalloc_a(8);
-	monitor_write("kmalloc_a(8) = ");
-	monitor_write_hex(addr);
-	monitor_put('\n');
 	print_placement_address();
 	break_point();
 
 	init_paging();
-	monitor_write("Hello, paging world!\n");
+	monitor_write("paging enabled\n");
 	print_heap(kheap);
 	break_point();
 
-	u32int *a = (u32int *)kmalloc(8);
-	u32int *b = (u32int *)kmalloc(8);
-	u32int *c = (u32int *)kmalloc(8);
-	u32int *d = (u32int *)kmalloc(8);
+	init_tasking();
+	monitor_write("multi task ready\n");
 	print_heap(kheap);
-	print_holes(kheap);
 	break_point();
-
-	kfree(d);
-	print_heap(kheap);
-	print_holes(kheap);
-	break_point();
-	kfree(b);
-	print_heap(kheap);
-	print_holes(kheap);
-	break_point();
-	kfree(c);
-	print_heap(kheap);
-	print_holes(kheap);
-	break_point();
-
-	u32int *e = alloc(12, 0, kheap);
-	print_heap(kheap);
-	print_holes(kheap);
-	break_point();
-
-	u32int *f = alloc(512, 1, kheap);
-	print_heap(kheap);
-	print_holes(kheap);
-	break_point();
-
-	u32int *g = (u32int *)kmalloc(200);
-	print_heap(kheap);
-	print_holes(kheap);
-	break_point();
-
+/*
 	monitor_write("init initrd\n");
 	init_initrd(initrd_location);
 	monitor_write("initrd_root at ");
@@ -154,6 +98,6 @@ int main(struct multiboot *mboot_ptr)
 		}
 		i++;
 	}
-
+*/
 	return 0;
 }

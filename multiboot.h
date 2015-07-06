@@ -19,7 +19,7 @@ struct multiboot {
 	u32int boot_device;
 	u32int cmdline;
 	u32int mods_count;
-	u32int mods_addr;
+	u32int *mods_addr;
 	u32int num;
 	u32int size;
 	u32int addr;

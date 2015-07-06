@@ -25,7 +25,7 @@ static u32int kmalloc_internal(u32int size, u8int align, u32int *phys)
 	void *addr = alloc(size, align, kheap);
 	if (phys) {
 		page_t *page = get_page((u32int)addr, 0, kernel_directory);
-		*phys = page->frame * 0x1000 + (u32int)addr & 0xFFF;
+		*phys = page->frame * 0x1000 + ((u32int)addr & 0xFFF);
 	}
 	return (u32int)addr;
 }
@@ -88,13 +88,30 @@ heap_t *create_heap(u32int start_addr, u32int end_addr, u32int max_addr, u8int s
 	ASSERT(end_addr % 0x1000 == 0);
 
 	heap_t *heap = (heap_t *)kmalloc(sizeof(heap_t));
+monitor_write("heap struct at ");
+monitor_write_hex((u32int)heap);
+monitor_write(", we reserved 4K memory before for this\n");
 	heap->holes = place_ordered_array((void *)start_addr, HEAP_HOLE_SIZE, &header_t_less_than);
+monitor_write("heap holes start ");
+monitor_write_hex(start_addr);
+monitor_write(", size ");
+monitor_write_hex(HEAP_HOLE_SIZE);
+monitor_write(" * 4 = ");
+monitor_write_dec((HEAP_HOLE_SIZE * 4) / 1024);
+monitor_write("K\nheap holes end ");
+monitor_write_hex(start_addr + 4 * HEAP_HOLE_SIZE);
+monitor_put('\n');
 
 	start_addr += sizeof(void *) * HEAP_HOLE_SIZE;
 	if (start_addr & 0xFFF) {
 		start_addr &= 0xFFFFF000;
 		start_addr += 0x1000;
 	}
+monitor_write("real heap area start ");
+monitor_write_hex(start_addr);
+monitor_write(", total size ");
+monitor_write_dec((end_addr - start_addr) / 1024);
+monitor_write("K\n");
 
 	heap->start_addr = start_addr;
 	heap->end_addr	 = end_addr;

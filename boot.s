@@ -27,6 +27,7 @@ multiboot:
 
 .global _start
 _start:
+	push %esp
 	push %ebx
 
 	cli

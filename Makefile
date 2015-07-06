@@ -1,7 +1,7 @@
 CFLAGS=-nostdlib -nostdinc -fno-builtin -fno-stack-protector -m32
 ASFLAGS=--32
 
-OBJS=boot.o common-s.o main.o common.o gdt-idt-s.o gdt-idt.o isr.o monitor.o timer.o kheap.o paging-s.o paging.o ordered-array.o fs.o initrd.o
+OBJS=boot.o common-s.o main.o common.o gdt-idt-s.o gdt-idt.o isr.o monitor.o timer.o kheap.o paging-s.o paging.o ordered-array.o fs.o initrd.o process.o task.o
  
 all: $(OBJS)
 	ld -T link.ld -m elf_i386 -o kernel $(OBJS)
@@ -38,6 +38,10 @@ fs.o: fs.c
 	gcc -c fs.c $(CFLAGS)
 initrd.o: initrd.c
 	gcc -c initrd.c $(CFLAGS)
+process.o: process.s
+	as -o process.o process.s $(ASFLAGS)
+task.o: task.c
+	gcc -c task.c $(CFLAGS)
 mk-initrd: mk-initrd.c
 	gcc -Wall -o mk-initrd mk-initrd.c
 	./mk-initrd file1.txt file-1.txt file2.txt file-2.txt
