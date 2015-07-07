@@ -94,6 +94,7 @@ void switch_task()
 	current_task = current_task->next;
 	if (!current_task) current_task = ready_queue;
 
+    current_task->interrupt = 0;
 	eip = current_task->eip;
 	esp = current_task->esp;
 	ebp = current_task->ebp;
@@ -101,7 +102,6 @@ void switch_task()
 	current_directory = current_task->page_directory;
 
 	asm volatile("			\
-		cli;				\
 		mov %0, %%ecx;		\
 		mov %1, %%esp;		\
 		mov %2, %%ebp;		\
