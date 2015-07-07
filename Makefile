@@ -43,6 +43,7 @@ process.o: process.s
 task.o: task.c
 	gcc -c task.c $(CFLAGS)
 mk-initrd: mk-initrd.c
+	rm mk-initrd initrd.img
 	gcc -Wall -o mk-initrd mk-initrd.c
 	./mk-initrd file1.txt file-1.txt file2.txt file-2.txt
 	sudo mount -o loop floppy.img /mnt
@@ -51,4 +52,4 @@ mk-initrd: mk-initrd.c
 run-floppy:
 	bochs -q
 clean:
-	rm *.o kernel mk-initrd initrd.img
+	rm *.o kernel

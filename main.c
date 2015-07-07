@@ -31,7 +31,7 @@ int main(struct multiboot *mboot_ptr, u32int initial_stack)
 	monitor_write("kernel end at ");
 	monitor_write_hex((u32int)&end);
 	monitor_put('\n');
-	monitor_write("main stack at ");
+	monitor_write("main stack start ");
 	monitor_write_hex(initial_esp);
 	monitor_put('\n');
 	break_point();
@@ -49,13 +49,7 @@ int main(struct multiboot *mboot_ptr, u32int initial_stack)
 	break_point();
 
 	init_paging();
-	monitor_write("paging enabled\n");
-	print_heap(kheap);
-	break_point();
-
 	init_tasking();
-	monitor_write("multi task ready\n");
-	break_point();
 
 	monitor_write("init initrd\n");
 	init_initrd(initrd_location);
@@ -70,6 +64,19 @@ int main(struct multiboot *mboot_ptr, u32int initial_stack)
 	monitor_put('\n');
 	print_heap(kheap);
 	break_point();
+
+	monitor_write("fork\n");
+	int ret = fork();
+	break_point();
+
+	monitor_write("fork() returned ");
+	monitor_write_dec(ret);
+	monitor_write(", and getpid() returned ");
+	monitor_write_dec(getpid());
+	monitor_write("\n=================================================\n");
+	break_point();
+
+	asm volatile("cli");
 
 	int i = 0;
 	struct dirent *node = 0;
@@ -99,6 +106,9 @@ int main(struct multiboot *mboot_ptr, u32int initial_stack)
 		}
 		i++;
 	}
+	monitor_write("\n");
+
+	asm volatile("sti");
 
 	return 0;
 }

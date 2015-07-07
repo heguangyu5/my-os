@@ -14,10 +14,26 @@ void init_tasking()
 {
 	asm volatile("cli");
 
+monitor_write("move stack to 0xE0000000\n");
+
 	move_stack((void *)0xE0000000, 0x2000);
 
-monitor_write("kmalloc current_task\n\n");
-	current_task = ready_queue = (task_t *)kmalloc(sizeof(task_t));
+print_heap(kheap);
+break_point();
+
+monitor_write("kmalloc current_task\n");
+
+    u32int phys;
+	current_task = ready_queue = (task_t *)kmalloc_p(sizeof(task_t), &phys);
+
+monitor_write("current_task = ready_queue = ");
+monitor_write_hex((u32int)current_task);
+monitor_write(", phys = ");
+monitor_write_hex(phys);
+monitor_put('\n');
+print_heap(kheap);
+break_point();
+
 	current_task->id = next_pid;
 	current_task->esp = 0;
 	current_task->ebp = 0;
@@ -26,6 +42,9 @@ monitor_write("kmalloc current_task\n\n");
 	current_task->next = 0;
 	current_task->interrupt = 0;
 	next_pid++;
+
+monitor_write("current_task init ok\n");
+break_point();
 
 	asm volatile("sti");
 }
@@ -77,6 +96,7 @@ int fork()
 void switch_task()
 {
 	if (!current_task) return;
+	if (current_task->next == 0 && current_task == ready_queue) return;
 
 	u32int esp, ebp, eip;
 	asm volatile("mov %%esp, %0" : "=r"(esp));
