@@ -153,7 +153,7 @@ monitor_write("register page_falut handler\n");
 break_point();
 
 monitor_write("enable paging\n");
-	switch_page_directory((u32int)&kernel_directory->tablesPhysical);
+	switch_page_directory((u32int)kernel_directory->physicalAddr);
 break_point();
 
 monitor_write("create kheap\n");
@@ -174,10 +174,12 @@ monitor_write("clone kernel_directory\n");
 monitor_write("cloned directory at ");
 monitor_write_hex((u32int)current_directory);
 monitor_put('\n');
+monitor_write("kheap current stat\n");
+print_heap(kheap);
 break_point();
 
 monitor_write("switch to cloned kernel_directory\n");
-	switch_page_directory((u32int)&current_directory->tablesPhysical);
+	switch_page_directory(current_directory->physicalAddr);
 break_point();
 }
 

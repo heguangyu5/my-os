@@ -31,6 +31,9 @@ int main(struct multiboot *mboot_ptr, u32int initial_stack)
 	monitor_write("kernel end at ");
 	monitor_write_hex((u32int)&end);
 	monitor_put('\n');
+	monitor_write("main stack at ");
+	monitor_write_hex(initial_esp);
+	monitor_put('\n');
 	break_point();
 
     ASSERT(mboot_ptr->mods_count > 0);
@@ -42,7 +45,6 @@ int main(struct multiboot *mboot_ptr, u32int initial_stack)
 	monitor_write(" ~ ");
 	monitor_write_hex(initrd_end);
 	monitor_put('\n');
-
 	print_placement_address();
 	break_point();
 
@@ -53,9 +55,8 @@ int main(struct multiboot *mboot_ptr, u32int initial_stack)
 
 	init_tasking();
 	monitor_write("multi task ready\n");
-	print_heap(kheap);
 	break_point();
-/*
+
 	monitor_write("init initrd\n");
 	init_initrd(initrd_location);
 	monitor_write("initrd_root at ");
@@ -98,6 +99,6 @@ int main(struct multiboot *mboot_ptr, u32int initial_stack)
 		}
 		i++;
 	}
-*/
+
 	return 0;
 }

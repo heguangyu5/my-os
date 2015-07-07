@@ -5,11 +5,13 @@
 #include "paging.h"
 
 typedef struct task {
-	int id;
-	u32int esp, ebp;
+	u32int id;
+	u32int esp;
+	u32int ebp;
 	u32int eip;
 	page_directory_t *page_directory;
 	struct task *next;
+	u32int interrupt;
 } task_t;
 
 void init_tasking();

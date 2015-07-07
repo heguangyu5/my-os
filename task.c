@@ -8,12 +8,15 @@ volatile task_t *ready_queue;
 
 u32int next_pid = 1;
 
+extern heap_t *kheap;
+
 void init_tasking()
 {
 	asm volatile("cli");
 
 	move_stack((void *)0xE0000000, 0x2000);
 
+monitor_write("kmalloc current_task\n\n");
 	current_task = ready_queue = (task_t *)kmalloc(sizeof(task_t));
 	current_task->id = next_pid;
 	current_task->esp = 0;
@@ -21,6 +24,7 @@ void init_tasking()
 	current_task->eip = 0;
 	current_task->page_directory = current_directory;
 	current_task->next = 0;
+	current_task->interrupt = 0;
 	next_pid++;
 
 	asm volatile("sti");
@@ -41,6 +45,7 @@ int fork()
 	new_task->eip = 0;
 	new_task->page_directory = dir;
 	new_task->next = 0;
+	new_task->interrupt = 0;
 	next_pid++;
 
 	task_t *tmp_task = (task_t *)ready_queue;
@@ -77,12 +82,14 @@ void switch_task()
 	asm volatile("mov %%esp, %0" : "=r"(esp));
 	asm volatile("mov %%ebp, %0" : "=r"(ebp));
 	eip = read_eip();
-	if (eip == 0x12345) {
+	if (current_task->interrupt) {
+	    current_task->interrupt = 0;
 		return;
 	}
 	current_task->eip = eip;
 	current_task->esp = esp;
 	current_task->ebp = ebp;
+	current_task->interrupt = 1;
 
 	current_task = current_task->next;
 	if (!current_task) current_task = ready_queue;
@@ -99,7 +106,6 @@ void switch_task()
 		mov %1, %%esp;		\
 		mov %2, %%ebp;		\
 		mov %3, %%cr3;		\
-		mov $0x12345, %%eax;\
 		sti;				\
 		jmp *%%ecx"
 					: : "r"(eip), "r"(esp), "r"(ebp), "r"(current_directory->physicalAddr));
@@ -130,7 +136,7 @@ void move_stack(void *new_stack_start, u32int size)
 
 	for (i = (u32int)new_stack_start; i > (u32int)new_stack_start - size; i -= 4) {
 		u32int tmp = *(u32int *)i;
-		if (old_stack_pointer < tmp && tmp < initial_esp) {
+		if (tmp > old_stack_pointer && tmp < initial_esp) {
 			tmp += offset;
 			u32int *tmp2 = (u32int *)i;
 			*tmp2 = tmp;

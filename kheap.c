@@ -172,6 +172,11 @@ static s32int find_smallest_hole(u32int size, u8int page_align, heap_t *heap)
 
 static void joinLeft(u32int start, u32int size, heap_t *heap)
 {
+    if (start == heap->start_addr) {
+        new_hole(start, size, heap);
+        return;
+    }
+
 	footer_t *left_footer = (footer_t *)(start - sizeof(footer_t));
 	header_t *left_header = left_footer->header;
 	if (left_header->is_hole || size < sizeof(header_t) + sizeof(footer_t) + 4) {
@@ -221,9 +226,11 @@ void *alloc(u32int size, u8int page_align, heap_t *heap)
 		return alloc(size, page_align, heap);
 	}
 
-	header_t *header = (header_t *)lookup_ordered_array(idx, &heap->holes);
-	u32int hole_start = (u32int)header;
+    header_t *header = (header_t *)lookup_ordered_array(idx, &heap->holes);
+    u32int hole_start = (u32int)header;
 	u32int hole_size  = header->size;
+
+	remove_ordered_array(idx, &heap->holes);
 
 	if (page_align && (hole_start + sizeof(header_t)) & 0xFFF) {
 		u32int offset = 0x1000 - (hole_start + sizeof(header_t)) & 0xFFF;
@@ -239,8 +246,6 @@ void *alloc(u32int size, u8int page_align, heap_t *heap)
 		new_size = hole_size;
 		leftAsNewHole = 0;
 	}
-
-	remove_ordered_array(idx, &heap->holes);
 
 	header_t *block_header = (header_t *)hole_start;
 	block_header->magic   = HEAP_MAGIC;
