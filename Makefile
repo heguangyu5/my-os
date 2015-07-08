@@ -42,8 +42,8 @@ process.o: process.s
 	as -o process.o process.s $(ASFLAGS)
 task.o: task.c
 	gcc -c task.c $(CFLAGS)
-mk-initrd: mk-initrd.c
-	rm mk-initrd initrd.img
+mk-initrd:
+	-rm mk-initrd initrd.img
 	gcc -Wall -o mk-initrd mk-initrd.c
 	./mk-initrd file1.txt file-1.txt file2.txt file-2.txt
 	sudo mount -o loop floppy.img /mnt

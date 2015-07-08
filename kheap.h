@@ -11,6 +11,7 @@ u32int kmalloc_ap(u32int size, u32int *phys);
 u32int kmalloc(u32int size);
 void kfree(void *p);
 void print_placement_address();
+u32int virt2phys(u32int virt_addr);
 
 #define KHEAP_START 0xC0000000
 #define KHEAP_INIT_SIZE 0x100000

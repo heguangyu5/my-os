@@ -1,5 +1,6 @@
 .global copy_page_physical
 .global read_eip
+.global do_switch_task
 
 copy_page_physical:
 	push %ebx
@@ -34,3 +35,17 @@ loop:
 read_eip:
 	pop %eax
 	jmp *%eax
+
+do_switch_task:
+	mov %esp, %eax
+	mov 4(%eax), %ecx 	# eip
+	mov 8(%eax), %esp 	# esp
+	mov 12(%eax), %ebp  # ebp
+	mov 16(%eax), %edx  # page_directory
+	mov 20(%eax), %eax  # interrupt_before
+	mov %edx, %cr3
+	cmp $1, %eax
+	je done
+	sti
+done:
+	jmp *%ecx

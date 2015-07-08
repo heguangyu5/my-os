@@ -44,6 +44,8 @@ int main(struct multiboot *mboot_ptr, u32int initial_stack)
 	monitor_write_hex(initrd_location);
 	monitor_write(" ~ ");
 	monitor_write_hex(initrd_end);
+	monitor_write(", size ");
+	monitor_write_dec(initrd_end - initrd_location);
 	monitor_put('\n');
 	print_placement_address();
 	break_point();
@@ -67,7 +69,8 @@ int main(struct multiboot *mboot_ptr, u32int initial_stack)
 
 	monitor_write("fork\n");
 	int ret = fork();
-	break_point();
+
+	asm volatile("cli");
 
 	monitor_write("fork() returned ");
 	monitor_write_dec(ret);
@@ -75,8 +78,6 @@ int main(struct multiboot *mboot_ptr, u32int initial_stack)
 	monitor_write_dec(getpid());
 	monitor_write("\n=================================================\n");
 	break_point();
-
-	asm volatile("cli");
 
 	int i = 0;
 	struct dirent *node = 0;

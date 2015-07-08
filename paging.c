@@ -111,6 +111,8 @@ monitor_write(" ~ ");
 monitor_write_hex(placement_address);
 monitor_put('\n');
 break_point();
+print_page_direcotry(kernel_directory, 1);
+break_point();
 
 monitor_write("init kheap page table\n");
 	int i = 0;
@@ -120,6 +122,8 @@ monitor_write("init kheap page table\n");
 		get_page(i, 1, kernel_directory);
 	}
 print_placement_address();
+break_point();
+print_page_direcotry(kernel_directory, 1);
 break_point();
 
 monitor_write("init current used memeory page table and alloc frames\n");
@@ -137,6 +141,8 @@ monitor_write(" , but memory used is(kheap area start) ");
 monitor_write_hex(placement_address + 0x1000);
 monitor_put('\n');
 break_point();
+print_page_direcotry(kernel_directory, 1);
+break_point();
 
 monitor_write("alloc kheap frames\n");
 	// 从这里开始,把heap的virt地址开始map到phys地址上, phys addr != virt addr
@@ -146,6 +152,8 @@ monitor_write("alloc kheap frames\n");
 monitor_write("now momory used is ");
 monitor_write_hex(placement_address + 0x1000 + KHEAP_INIT_SIZE);
 monitor_write(", kheap initial size is 1M, max size is 4M\n");
+break_point();
+print_page_direcotry(kernel_directory, 1);
 break_point();
 
 monitor_write("register page_falut handler\n");
@@ -169,13 +177,17 @@ monitor_write("kheap current stat\n");
 print_heap(kheap);
 break_point();
 
-monitor_write("clone kernel_directory\n");
+monitor_write("\n\nclone kernel_directory\n");
 	current_directory = clone_directory(kernel_directory);
 monitor_write("cloned directory at ");
 monitor_write_hex((u32int)current_directory);
-monitor_put('\n');
+monitor_put('(');
+monitor_write_hex(virt2phys((u32int)current_directory));
+monitor_write(")\n");
 monitor_write("kheap current stat\n");
 print_heap(kheap);
+break_point();
+print_page_direcotry(current_directory, 1);
 break_point();
 
 monitor_write("switch to cloned kernel_directory\n");
@@ -290,4 +302,56 @@ page_directory_t *clone_directory(page_directory_t *src)
 	}
 
 	return dir;
+}
+
+void print_page_direcotry(page_directory_t *dir, u8int printPageTable)
+{
+    monitor_write("Idx\tPageTableAddr\t\tPageTablePhysAddr\n");
+    int i;
+    for (i = 0; i < 1024; i++) {
+        if (dir->tables[i]) {
+            monitor_write_dec(i);
+            monitor_put('\t');
+            monitor_write_hex((u32int)dir->tables[i]);
+            monitor_write("\t\t");
+            monitor_write_hex(dir->tablesPhysical[i]);
+            monitor_put('\n');
+        }
+    }
+    monitor_write("TABLES PHYSCIAL ADDR (%cr3): ");
+    monitor_write_hex(dir->physicalAddr);
+    monitor_put('\n');
+
+    if (!printPageTable) return;
+
+    break_point();
+    for (i = 0; i < 1024; i++) {
+        if (dir->tables[i]) {
+            monitor_write("Page Table ");
+            monitor_write_dec(i);
+            monitor_write(" Details\n");
+            monitor_write("Idx\tFrameAddr\t\tPRESENT\tRW\tUSER\tAccessed\tDirty\n");
+            page_t *pages = dir->tables[i]->pages;
+            int j;
+            for (j = 0; j < 1024; j++) {
+                if (pages[j].frame) {
+                    monitor_write_dec(j);
+                    monitor_put('\t');
+                    monitor_write_hex(pages[j].frame * 0x1000);
+                    monitor_write("\t\t");
+                    monitor_write_dec(pages[j].present);
+                    monitor_put('\t');
+                    monitor_write_dec(pages[j].rw);
+                    monitor_put('\t');
+                    monitor_write_dec(pages[j].user);
+                    monitor_put('\t');
+                    monitor_write_dec(pages[j].accessed);
+                    monitor_put('\t');
+                    monitor_write_dec(pages[j].dirty);
+                    monitor_put('\n');
+                }
+            }
+            break_point();
+        }
+    }
 }

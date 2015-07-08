@@ -19,5 +19,6 @@ void switch_task();
 int fork();
 void move_stack(void *new_stack_start, u32int size);
 int getpid();
+void print_task(volatile task_t *task);
 
 #endif

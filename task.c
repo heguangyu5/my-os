@@ -20,8 +20,10 @@ monitor_write("move stack to 0xE0000000\n");
 
 print_heap(kheap);
 break_point();
+print_page_direcotry(current_directory, 1);
+break_point();
 
-monitor_write("kmalloc current_task\n");
+monitor_write("\n\nkmalloc current_task\n");
 
     u32int phys;
 	current_task = ready_queue = (task_t *)kmalloc_p(sizeof(task_t), &phys);
@@ -44,6 +46,7 @@ break_point();
 	next_pid++;
 
 monitor_write("current_task init ok\n");
+print_task(current_task);
 break_point();
 
 	asm volatile("sti");
@@ -55,8 +58,10 @@ int fork()
 
 	task_t *parent_task = (task_t *)current_task;
 
+monitor_write("clone_directory\n");
 	page_directory_t *dir = clone_directory(current_directory);
 
+monitor_write("create new_task\n");
 	task_t *new_task = (task_t *)kmalloc(sizeof(task_t));
 	new_task->id = next_pid;
 	new_task->esp = 0;
@@ -84,6 +89,10 @@ int fork()
 		new_task->ebp = ebp;
 		new_task->eip = eip;
 
+		monitor_write("new task ready:\n");
+		print_task(new_task);
+		break_point();
+
 		asm volatile("sti");
 
 		return new_task->id;
@@ -106,29 +115,43 @@ void switch_task()
 	    current_task->interrupt = 0;
 		return;
 	}
+
+//	monitor_write("\n\ncurrent task will be interrupt:\n");
+//	print_task(current_task);
+//	break_point();
+
 	current_task->eip = eip;
 	current_task->esp = esp;
 	current_task->ebp = ebp;
 	current_task->interrupt = 1;
 
+//	monitor_write("current_task saved info:\n");
+//	print_task(current_task);
+//	break_point();
+
+//    monitor_write("switch to next task\n");
 	current_task = current_task->next;
 	if (!current_task) current_task = ready_queue;
 
-    current_task->interrupt = 0;
 	eip = current_task->eip;
 	esp = current_task->esp;
 	ebp = current_task->ebp;
 
+//	monitor_write("next_task info:\n");
+//	print_task(current_task);
+//	break_point();
+
 	current_directory = current_task->page_directory;
 
-	asm volatile("			\
-		mov %0, %%ecx;		\
-		mov %1, %%esp;		\
-		mov %2, %%ebp;		\
-		mov %3, %%cr3;		\
-		sti;				\
-		jmp *%%ecx"
-					: : "r"(eip), "r"(esp), "r"(ebp), "r"(current_directory->physicalAddr));
+//	monitor_write("next_task begin");
+//	break_point();
+	do_switch_task(
+	    current_task->eip,
+	    current_task->esp,
+	    current_task->ebp,
+	    current_directory->physicalAddr,
+	    current_task->interrupt
+	);
 }
 
 void move_stack(void *new_stack_start, u32int size)
@@ -170,4 +193,48 @@ void move_stack(void *new_stack_start, u32int size)
 int getpid()
 {
 	return current_task->id;
+}
+
+void print_task(volatile task_t *task)
+{
+    monitor_write("task addr: ");
+    monitor_write_hex((u32int)task);
+    monitor_put('\n');
+
+    monitor_write("id  = ");
+    monitor_write_dec(task->id);
+    monitor_put('\n');
+
+    monitor_write("esp = ");
+    monitor_write_hex(task->esp);
+    monitor_put('(');
+    monitor_write_hex(virt2phys(task->esp));
+    monitor_write(")\n");
+
+    monitor_write("ebp = ");
+    monitor_write_hex(task->ebp);
+    monitor_put('(');
+    monitor_write_hex(virt2phys(task->ebp));
+    monitor_write(")\n");
+
+    monitor_write("eip = ");
+    monitor_write_hex(task->eip);
+    monitor_put('(');
+    monitor_write_hex(virt2phys(task->eip));
+    monitor_write(")\n");
+
+    monitor_write("interrupt = ");
+    monitor_write_dec(task->interrupt);
+    monitor_put('\n');
+
+    print_page_direcotry(task->page_directory, 0);
+
+    monitor_write("next task: ");
+    task_t *next_task = task->next;
+    if (next_task) {
+        monitor_write_dec(next_task->id);
+    } else {
+        monitor_write("none");
+    }
+    monitor_put('\n');
 }

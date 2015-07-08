@@ -6,6 +6,7 @@ extern u32int end;
 u32int placement_address = (u32int)&end;
 extern heap_t *kheap;
 extern page_directory_t *kernel_directory;
+extern page_directory_t *current_directory;
 
 static u32int kmalloc_internal(u32int size, u8int align, u32int *phys)
 {
@@ -28,6 +29,12 @@ static u32int kmalloc_internal(u32int size, u8int align, u32int *phys)
 		*phys = page->frame * 0x1000 + ((u32int)addr & 0xFFF);
 	}
 	return (u32int)addr;
+}
+
+u32int virt2phys(u32int virt_addr)
+{
+    page_t *page = get_page(virt_addr, 0, current_directory);
+    return page->frame * 0x1000 + (virt_addr & 0xFFF);
 }
 
 u32int kmalloc_a(u32int size)
@@ -94,13 +101,17 @@ monitor_write(", we reserved 4K memory before for this\n");
 	heap->holes = place_ordered_array((void *)start_addr, HEAP_HOLE_SIZE, &header_t_less_than);
 monitor_write("heap holes start ");
 monitor_write_hex(start_addr);
-monitor_write(", size ");
+monitor_put('(');
+monitor_write_hex(virt2phys(start_addr));
+monitor_write("), size ");
 monitor_write_hex(HEAP_HOLE_SIZE);
 monitor_write(" * 4 = ");
 monitor_write_dec((HEAP_HOLE_SIZE * 4) / 1024);
 monitor_write("K\nheap holes end ");
 monitor_write_hex(start_addr + 4 * HEAP_HOLE_SIZE);
-monitor_put('\n');
+monitor_put('(');
+monitor_write_hex(virt2phys(start_addr + 4 * HEAP_HOLE_SIZE));
+monitor_write(")\n");
 
 	start_addr += sizeof(void *) * HEAP_HOLE_SIZE;
 	if (start_addr & 0xFFF) {
@@ -109,7 +120,9 @@ monitor_put('\n');
 	}
 monitor_write("real heap area start ");
 monitor_write_hex(start_addr);
-monitor_write(", total size ");
+monitor_put('(');
+monitor_write_hex(virt2phys(start_addr));
+monitor_write("), total size ");
 monitor_write_dec((end_addr - start_addr) / 1024);
 monitor_write("K\n");
 
@@ -291,11 +304,19 @@ void print_heap(heap_t *heap)
 
 	monitor_write("start_addr = ");
 	monitor_write_hex(heap->start_addr);
-	monitor_write(", end_addr = ");
+	monitor_put('(');
+	monitor_write_hex(virt2phys(heap->start_addr));
+	monitor_write(")\n");
+	monitor_write("end_addr = ");
 	monitor_write_hex(heap->end_addr);
-	monitor_write(", max_addr = ");
+	monitor_put('(');
+	monitor_write_hex(virt2phys(heap->end_addr));
+	monitor_write(")\n");
+	monitor_write("max_addr = ");
 	monitor_write_hex(heap->max_addr);
-	monitor_put('\n');
+	monitor_put('(');
+	monitor_write_hex(virt2phys(heap->max_addr));
+	monitor_write(")\n");
 
 	monitor_write("supervisor = ");
 	monitor_write_dec(heap->supervisor);
@@ -303,7 +324,7 @@ void print_heap(heap_t *heap)
 	monitor_write_dec(heap->readonly);
 	monitor_put('\n');
 
-	monitor_write("HEAP DESC:\n");
+	monitor_write("HEADER\t\t\t\t\tSTATUS\tSIZE\tUSE\tSTART\n");
 
 	u32int addr = heap->start_addr;
 	header_t *header;
@@ -312,7 +333,9 @@ void print_heap(heap_t *heap)
 		ASSERT(header->magic == HEAP_MAGIC);
 
 		monitor_write_hex(addr);
-		monitor_put('\t');
+		monitor_put('(');
+		monitor_write_hex(virt2phys(addr));
+		monitor_write(")\t");
 		monitor_write(header->is_hole ? "HOLE" : "BLOCK");
 		monitor_put('\t');
 		monitor_write_dec(header->size);
@@ -320,7 +343,9 @@ void print_heap(heap_t *heap)
 		monitor_write_dec(header->size - sizeof(header_t) - sizeof(footer_t));
 		monitor_put('\t');
 		monitor_write_hex((u32int)header + sizeof(header_t));
-		monitor_put('\n');
+		monitor_put('(');
+		monitor_write_hex(virt2phys((u32int)header + sizeof(header_t)));
+		monitor_write(")\n");
 
 		addr += header->size;
 	}
