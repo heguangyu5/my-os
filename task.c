@@ -60,6 +60,8 @@ int fork()
 
 monitor_write("clone_directory\n");
 	page_directory_t *dir = clone_directory(current_directory);
+print_page_direcotry(dir, 1);
+break_point();
 
 monitor_write("create new_task\n");
 	task_t *new_task = (task_t *)kmalloc(sizeof(task_t));
