@@ -6,6 +6,7 @@
 #include "paging.h"
 #include "fs.h"
 #include "task.h"
+#include "syscall.h"
 
 extern u32int end;
 extern u32int placement_address;
@@ -13,6 +14,7 @@ extern heap_t *kheap;
 extern fs_node_t *initrd_root;
 extern fs_node_t *initrd_dev;
 extern fs_node_t *root_nodes;
+extern isr_t interrupt_handlers[];
 
 u32int initial_esp;
 
@@ -22,11 +24,16 @@ int main(struct multiboot *mboot_ptr, u32int initial_stack)
 
 	init_gdt();
 	init_idt();
+	memset(&interrupt_handlers, 0, sizeof(isr_t)*256);
 
 	monitor_clear();
+	monitor_write("init gdt idt ok\n");
+	break_point();
 
+	monitor_write("init timer\n");
 	asm volatile("sti");
 	init_timer(50); // 50Hz
+	break_point();
 
 	monitor_write("kernel end at ");
 	monitor_write_hex((u32int)&end);
@@ -67,49 +74,16 @@ int main(struct multiboot *mboot_ptr, u32int initial_stack)
 	print_heap(kheap);
 	break_point();
 
-	monitor_write("fork\n");
-	int ret = fork();
-
-	asm volatile("cli");
-
-	monitor_write("fork() returned ");
-	monitor_write_dec(ret);
-	monitor_write(", and getpid() returned ");
-	monitor_write_dec(getpid());
-	monitor_write("\n=================================================\n");
+	monitor_write("init syscalls\n");
+	init_syscalls();
 	break_point();
 
-	int i = 0;
-	struct dirent *node = 0;
-	while ((node = readdir_fs(initrd_root, i)) != 0) {
-		monitor_write("Found file ");
-		monitor_write(node->name);
-		fs_node_t *fsnode = finddir_fs(initrd_root, node->name);
-		monitor_write(" node at ");
-		monitor_write_hex((u32int)fsnode);
-		monitor_write(" flag at ");
-		monitor_write_hex((u32int)&fsnode->flags);
-		monitor_write(" is ");
-		monitor_write_hex(fsnode->flags);
-		break_point();
-
-		if ((fsnode->flags & 0x7) == FS_DIRECTORY) {
-			monitor_write("\n\t(directory)\n");
-		} else {
-			monitor_write("\n\t contents: \n\"");
-			char buf[256];
-			u32int sz = read_fs(fsnode, 0, 256, buf);
-			int j;
-			for (j = 0; j < sz; j++) {
-				monitor_put(buf[j]);
-			}
-			monitor_write("\"\n");
-		}
-		i++;
-	}
-	monitor_write("\n");
-
-	asm volatile("sti");
+	switch_to_user_mode();
+	syscall_monitor_write("Hello, user world!\n");
+	syscall_monitor_write_hex(0x123456);
+	syscall_monitor_write("\n");
+	syscall_monitor_write_dec(123456);
+	syscall_monitor_write("\n");
 
 	return 0;
 }

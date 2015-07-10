@@ -15,6 +15,12 @@ gdt_flush:
 flush:
 	ret
 
+.global tss_flush
+tss_flush:
+	mov $0x2b, %ax
+	ltr %ax
+	ret
+
 .global idt_flush
 idt_flush:
 	mov 4(%esp), %eax
@@ -70,6 +76,7 @@ ISR_NOERRCODE 28
 ISR_NOERRCODE 29
 ISR_NOERRCODE 30
 ISR_NOERRCODE 31
+ISR_NOERRCODE 128
 
 .extern isr_handler
 

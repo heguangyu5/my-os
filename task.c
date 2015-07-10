@@ -43,6 +43,7 @@ break_point();
 	current_task->page_directory = current_directory;
 	current_task->next = 0;
 	current_task->interrupt = 0;
+	current_task->kernel_stack = kmalloc_a(KERNEL_STACK_SIZE);
 	next_pid++;
 
 monitor_write("current_task init ok\n");
@@ -72,6 +73,7 @@ monitor_write("create new_task\n");
 	new_task->page_directory = dir;
 	new_task->next = 0;
 	new_task->interrupt = 0;
+	new_task->kernel_stack = kmalloc_a(KERNEL_STACK_SIZE);
 	next_pid++;
 
 	task_t *tmp_task = (task_t *)ready_queue;
@@ -144,6 +146,7 @@ void switch_task()
 //	break_point();
 
 	current_directory = current_task->page_directory;
+	set_kernel_stack(current_task->kernel_stack + KERNEL_STACK_SIZE);
 
 //	monitor_write("next_task begin");
 //	break_point();
@@ -229,6 +232,10 @@ void print_task(volatile task_t *task)
     monitor_write_dec(task->interrupt);
     monitor_put('\n');
 
+    monitor_write("kernel_stack = ");
+    monitor_write_hex(task->kernel_stack);
+    monitor_put('\n');
+
     print_page_direcotry(task->page_directory, 0);
 
     monitor_write("next task: ");
@@ -239,4 +246,10 @@ void print_task(volatile task_t *task)
         monitor_write("none");
     }
     monitor_put('\n');
+}
+
+void switch_to_user_mode()
+{
+    set_kernel_stack(current_task->kernel_stack + KERNEL_STACK_SIZE);
+    do_switch_to_user_mode();
 }

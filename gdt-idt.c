@@ -1,10 +1,12 @@
 #include "gdt-idt.h"
 
-gdt_entry_t gdt_entries[5];
+gdt_entry_t gdt_entries[6];
 gdt_ptr_t gdt_ptr;
 
 idt_entry_t idt_entries[256];
 idt_ptr_t idt_ptr;
+
+tss_entry_t tss_entry;
 
 extern void isr0(void);
 extern void isr1(void);
@@ -38,6 +40,7 @@ extern void isr28(void);
 extern void isr29(void);
 extern void isr30(void);
 extern void isr31(void);
+extern void isr128(void);
 
 extern void irq0(void);
 extern void irq1(void);
@@ -70,9 +73,30 @@ static void gdt_set(u32int idx, u32int base, u32int limit, u8int access, u8int g
 	gdt_entries[idx].access		 = access;
 }
 
+static void write_tss(u32int idx, u32int ss0, u32int esp0)
+{
+	u32int base = (u32int)&tss_entry;
+	u32int limit = base + sizeof(tss_entry_t);
+
+	gdt_set(idx, base, limit, 0xE9, 0x00);
+
+	memset(&tss_entry, 0, sizeof(tss_entry_t));
+
+	tss_entry.ss0 = ss0;
+	tss_entry.esp0 = esp0;
+
+	tss_entry.cs = 0x0b;
+	tss_entry.ss = tss_entry.ds = tss_entry.es = tss_entry.fs = tss_entry.gs = 0x13;
+}
+
+void set_kernel_stack(u32int stack)
+{
+	tss_entry.esp0 = stack;
+}
+
 void init_gdt()
-{	
-	gdt_ptr.size = (sizeof(gdt_entry_t) * 5) - 1;
+{
+	gdt_ptr.size = (sizeof(gdt_entry_t) * 6) - 1;
 	gdt_ptr.base = (u32int)&gdt_entries;
 
 	gdt_set(0, 0, 0, 0, 0);					// Null segment
@@ -80,8 +104,10 @@ void init_gdt()
 	gdt_set(2, 0, 0xFFFFFFFF, 0x92, 0xCF);	// Data segment
 	gdt_set(3, 0, 0xFFFFFFFF, 0xFA, 0xCF);	// User mode code segment
 	gdt_set(4, 0, 0xFFFFFFFF, 0xF2, 0xCF);	// User mode data segment
+	write_tss(5, 0x10, 0x0);
 
 	gdt_flush((u32int)&gdt_ptr);
+	tss_flush();
 }
 
 static void idt_set(u8int idx, u32int base, u16int sel, u8int flags)
@@ -112,7 +138,7 @@ void init_idt()
 	outb(0xA1, 0x02);
 	outb(0xA1, 0x01);
 	outb(0xA1, 0x00);
-	
+
 	idt_set(0, (u32int)isr0, 0x08, 0x8E);
 	idt_set(1, (u32int)isr1, 0x08, 0x8E);
 	idt_set(2, (u32int)isr2, 0x08, 0x8E);
@@ -163,6 +189,8 @@ void init_idt()
 	idt_set(45, (u32int)irq13, 0x08, 0x8E);
 	idt_set(46, (u32int)irq14, 0x08, 0x8E);
 	idt_set(47, (u32int)irq15, 0x08, 0x8E);
+
+	idt_set(128, (u32int)isr128, 0x08, 0xEE);
 
 	idt_flush((u32int)&idt_ptr);
 }
