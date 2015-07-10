@@ -1,15 +1,17 @@
 .global call_syscall
 call_syscall:
-	call *4(%esp)
-	pop %eax # ret addr
-	pop %ebx # syscall[regs.eax]
-	pop %ebx # regs.ebx
-	pop %ebx # regs.ecx
-	pop %ebx # regs.edx
-	pop %ebx # regs.esi
-	pop %ebx # regs.edi
-	pop %ebx # &regs.eax
-	jmp *%eax
+	push %ebp
+	mov %esp, %ebp
+	push 28(%ebp)
+	push 24(%ebp)
+	push 20(%ebp)
+	push 16(%ebp)
+	push 12(%ebp)
+	call *8(%ebp)
+	add $20, %esp
+	leave
+	ret
+	
 
 .global syscall_monitor_write
 syscall_monitor_write:

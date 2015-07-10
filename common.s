@@ -27,3 +27,10 @@ inw:
 # void break_point()
 break_point:
     ret
+
+.global user_mode_can_read_but_cannot_write
+user_mode_can_read_but_cannot_write:
+	mov $0x105b6e, %eax
+	mov (%eax), %ebx
+	movl $0x1111, (%eax)
+	ret

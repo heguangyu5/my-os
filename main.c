@@ -80,10 +80,14 @@ int main(struct multiboot *mboot_ptr, u32int initial_stack)
 
 	switch_to_user_mode();
 	syscall_monitor_write("Hello, user world!\n");
+	break_point();
 	syscall_monitor_write_hex(0x123456);
 	syscall_monitor_write("\n");
+	break_point();
 	syscall_monitor_write_dec(123456);
 	syscall_monitor_write("\n");
+	break_point();
+	user_mode_can_read_but_cannot_write();
 
 	return 0;
 }
