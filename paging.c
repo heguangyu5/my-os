@@ -99,7 +99,7 @@ monitor_put('\n');
 break_point();
 
 	kernel_directory = (page_directory_t *)kmalloc_a(sizeof(page_directory_t));
-	memset(kernel_directory, 0, sizeof(kernel_directory));
+	memset(kernel_directory, 0, sizeof(page_directory_t));
 	kernel_directory->physicalAddr = (u32int)kernel_directory->tablesPhysical;
 	current_directory = kernel_directory;
 
